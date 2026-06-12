@@ -1,0 +1,50 @@
+[project]
+name = "termflix"
+version = "0.1.0"
+description = "Play videos and images in your terminal"
+authors = [
+    {name = "Ahmad Sohaib Qasim", email = "qasim.datadev@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+keywords = ["terminal", "ascii", "video", "cli"]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/asqasim/termflix"
+Repository = "https://github.com/asqasim/termflix"
+
+[project.scripts]
+termflix = "termflix.main:main"
+
+[tool.poetry]
+packages = [{include = "termflix", from = "src"}]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+pytest-cov = "^5.0"
+ruff = "^0.4"
+pre-commit = "^3.7"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: tests that take long",
+    "windows_only: windows specific tests",
+    "linux_only: linux specific tests",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.coverage.report]
+fail_under = 80
