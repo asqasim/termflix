@@ -22,10 +22,10 @@ termflix = "termflix.main:main"
 packages = [{include = "termflix", from = "src"}]
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.0"
-pytest-cov = "^5.0"
-ruff = "^0.4"
-pre-commit = "^3.7"
+pytest = "^9.0"
+pytest-cov = "^6.0"
+ruff = "^0.15"
+pre-commit = "^4.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
