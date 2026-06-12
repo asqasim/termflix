@@ -6,7 +6,7 @@ authors = [
     {name = "Ahmad Sohaib Qasim", email = "qasim.datadev@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = "MIT"
 keywords = ["terminal", "ascii", "video", "cli"]
 dependencies = []
@@ -41,7 +41,7 @@ markers = [
 
 [tool.ruff]
 line-length = 88
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
