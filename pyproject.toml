@@ -6,10 +6,10 @@ authors = [
     {name = "Ahmad Sohaib Qasim", email = "qasim.datadev@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11, <4.0"
 license = "MIT"
 keywords = ["terminal", "ascii", "video", "cli"]
-dependencies = []
+dependencies = ["textual (>=8.2.7,<9.0.0)", "rich (>=15.0.0,<16.0.0)", "opencv-python (>=4.13.0.92,<5.0.0.0)", "pillow (>=12.2.0,<13.0.0)", "numpy (>=2.4.6,<3.0.0)", "click (>=8.4.1,<9.0.0)"]
 
 [project.urls]
 Homepage = "https://github.com/asqasim/termflix"
@@ -41,7 +41,7 @@ markers = [
 
 [tool.ruff]
 line-length = 88
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
