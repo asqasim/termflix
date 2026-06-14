@@ -177,7 +177,7 @@ def _image_to_braille(image: Image.Image, *, colored: bool = False) -> str:
         A Braille string representing the image.
     """
     gray = np.array(image.convert("L"))
-    threshold = 128
+    threshold = int(np.mean(gray))
 
     pixel_height, pixel_width = gray.shape
     char_width = pixel_width // 2
