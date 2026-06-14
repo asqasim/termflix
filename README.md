@@ -107,3 +107,7 @@ Contributions are welcome. Please read [`docs/contributing.md`](docs/contributin
 ## License
 
 MIT — see [`LICENSE`](LICENSE) for details.
+
+## Acknowledgements
+
+Sample media courtesy of creators on [Pixabay](https://pixabay.com). See [`CREDITS.md`](CREDITS.md) for full attribution.
