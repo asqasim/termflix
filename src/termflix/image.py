@@ -6,9 +6,9 @@ import cv2
 import numpy as np
 from PIL import Image
 
-ASCII_CHARS_BW = np.array(list(r"@%#*+=-:. "))
+ASCII_CHARS_BW = np.array(list(r" .:-=+*#%@"))
 ASCII_CHARS_COLOR = np.array(
-    list(r"$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\"^`'. ")
+    list(r" .'`^\",:;Il!i~+_-?][}{1)(|\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao#MW&8%B@$")
 )
 
 ASPECT_RATIO_CORRECTION = 0.45
@@ -104,16 +104,6 @@ def resize_frame(
     *,
     mode: str = RenderMode.ASCII,
 ) -> np.ndarray:
-    """Resize a raw numpy BGR/RGB frame directly using OpenCV — faster than Pillow.
-
-    Args:
-        frame_rgb: A numpy array of shape (H, W, 3) in RGB order.
-        width: Target width in terminal columns.
-        mode: Render mode affects aspect ratio correction.
-
-    Returns:
-        A resized numpy array.
-    """
     if width <= 0:
         raise ValueError(f"Width must be a positive integer, got {width}")
 
@@ -123,10 +113,22 @@ def resize_frame(
     if mode == RenderMode.BRAILLE:
         pixel_width = width * 2
         pixel_height = int(pixel_width * aspect_ratio * BRAILLE_ASPECT_CORRECTION) * 4
-        pixel_height = (pixel_height // 4) * 4  # ensure multiple of 4 for block alignment
-        return cv2.resize(
+        pixel_height = max(4, (pixel_height // 4) * 4)
+        result = cv2.resize(
             frame_rgb, (pixel_width, pixel_height), interpolation=cv2.INTER_LINEAR
         )
+    else:
+        pixel_height = max(1, int(width * aspect_ratio * ASPECT_RATIO_CORRECTION))
+        result = cv2.resize(
+            frame_rgb, (width, pixel_height), interpolation=cv2.INTER_LINEAR
+        )
+
+    if result is None:
+        raise ValueError(
+            f"cv2.resize returned None for dimensions ({width}, {pixel_height})"
+        )
+
+    return result
 
 
 def frame_to_ascii(
