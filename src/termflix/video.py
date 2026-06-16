@@ -16,6 +16,9 @@ from termflix.image import RenderMode, frame_to_ascii, resize_frame
 _SENTINEL = object()
 
 
+MAX_RENDER_WIDTH = 300  # beyond this zoom level, stop auto-adjusting
+
+
 class VideoMetadata:
     """Holds metadata extracted from a video file."""
 
@@ -140,9 +143,13 @@ def extract_frames(
 
 
 def _current_render_width() -> int:
-    """Return the current terminal column count as render width."""
+    """Return clamped terminal width for rendering.
+
+    Clamps between 20 and MAX_RENDER_WIDTH so extreme zoom-out
+    doesn't keep increasing resolution and slowing playback.
+    """
     columns, _ = get_terminal_size()
-    return max(columns, 20)
+    return max(20, min(columns, MAX_RENDER_WIDTH))
 
 
 class VideoPlayer:
