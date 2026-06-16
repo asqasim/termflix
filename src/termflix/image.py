@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import cv2
 import numpy as np
-from PIL import Image, UnidentifiedImageError
+from PIL import Image
 
-ASCII_CHARS_BW = r" .:-=+*#%@"
-ASCII_CHARS_COLOR = (
-    r"$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\"^`'. "
+ASCII_CHARS_BW = np.array(list(r" .:-=+*#%@"))
+ASCII_CHARS_COLOR = np.array(
+    list(r"$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\"^`'. ")
 )
 
 ASPECT_RATIO_CORRECTION = 0.45
@@ -24,6 +25,11 @@ BRAILLE_BIT_MAP: dict[tuple[int, int], int] = {
     (3, 0): 0x40,
     (3, 1): 0x80,
 }
+
+# precompute braille bit positions as arrays for vectorized ops
+_BRAILLE_ROW_OFFSETS = np.array([0, 0, 1, 1, 2, 2, 3, 3])
+_BRAILLE_COL_OFFSETS = np.array([0, 1, 0, 1, 0, 1, 0, 1])
+_BRAILLE_BITS = np.array([0x01, 0x08, 0x02, 0x10, 0x04, 0x20, 0x40, 0x80])
 
 
 class RenderMode:
@@ -52,7 +58,7 @@ def load_image(path: str | Path) -> Image.Image:
     try:
         image = Image.open(path)
         image.load()
-    except UnidentifiedImageError as e:
+    except Exception as e:
         raise ValueError(f"File is not a valid image: {path}") from e
 
     return image
@@ -92,13 +98,100 @@ def resize_image(
     return image.resize((width, height), Image.LANCZOS)
 
 
+def resize_frame(
+    frame_rgb: np.ndarray,
+    width: int,
+    *,
+    mode: str = RenderMode.ASCII,
+) -> np.ndarray:
+    """Resize a raw numpy BGR/RGB frame directly using OpenCV — faster than Pillow.
+
+    Args:
+        frame_rgb: A numpy array of shape (H, W, 3) in RGB order.
+        width: Target width in terminal columns.
+        mode: Render mode affects aspect ratio correction.
+
+    Returns:
+        A resized numpy array.
+    """
+    if width <= 0:
+        raise ValueError(f"Width must be a positive integer, got {width}")
+
+    h, w = frame_rgb.shape[:2]
+    aspect_ratio = h / w
+
+    if mode == RenderMode.BRAILLE:
+        pixel_width = width * 2
+        pixel_height = (
+            int(pixel_width * aspect_ratio * BRAILLE_ASPECT_CORRECTION) // 4
+        ) * 4
+        return cv2.resize(
+            frame_rgb, (pixel_width, pixel_height), interpolation=cv2.INTER_LINEAR
+        )
+
+    pixel_height = int(width * aspect_ratio * ASPECT_RATIO_CORRECTION)
+    return cv2.resize(frame_rgb, (width, pixel_height), interpolation=cv2.INTER_LINEAR)
+
+
+def frame_to_ascii(
+    frame_rgb: np.ndarray,
+    *,
+    colored: bool = False,
+    mode: str = RenderMode.ASCII,
+) -> str:
+    """Convert a raw numpy RGB frame to a terminal string — fully vectorized.
+
+    This bypasses Pillow entirely for maximum speed during video playback.
+
+    Args:
+        frame_rgb: A numpy array of shape (H, W, 3) in RGB order.
+        colored: If True, wraps characters in ANSI truecolor escape codes.
+        mode: RenderMode.ASCII or RenderMode.BRAILLE.
+
+    Returns:
+        A terminal string representing the frame.
+    """
+    if mode == RenderMode.BRAILLE:
+        return _frame_to_braille(frame_rgb, colored=colored)
+
+    chars = ASCII_CHARS_COLOR if colored else ASCII_CHARS_BW
+
+    # vectorized luminance — entire frame at once, no Python loops
+    gray = (
+        0.299 * frame_rgb[:, :, 0]
+        + 0.587 * frame_rgb[:, :, 1]
+        + 0.114 * frame_rgb[:, :, 2]
+    ).astype(np.uint8)
+
+    indices = (gray.astype(np.float32) / 255 * (len(chars) - 1)).astype(np.int32)
+    char_array = chars[indices]
+
+    if not colored:
+        return "\n".join("".join(row) for row in char_array)
+
+    # vectorized ANSI color wrapping
+    r = frame_rgb[:, :, 0]
+    g = frame_rgb[:, :, 1]
+    b = frame_rgb[:, :, 2]
+
+    rows = []
+    for y in range(char_array.shape[0]):
+        parts = []
+        for x in range(char_array.shape[1]):
+            parts.append(
+                f"\033[38;2;{r[y, x]};{g[y, x]};{b[y, x]}m{char_array[y, x]}\033[0m"
+            )
+        rows.append("".join(parts))
+    return "\n".join(rows)
+
+
 def image_to_ascii(
     image: Image.Image,
     *,
     colored: bool = False,
     mode: str = RenderMode.ASCII,
 ) -> str:
-    """Convert a Pillow image to a terminal-renderable string.
+    """Convert a Pillow image to a terminal string.
 
     Args:
         image: A Pillow Image object. Should already be resized.
@@ -108,28 +201,8 @@ def image_to_ascii(
     Returns:
         A string of characters representing the image, rows separated by newlines.
     """
-    if mode == RenderMode.BRAILLE:
-        return _image_to_braille(image, colored=colored)
-
-    chars = ASCII_CHARS_COLOR if colored else ASCII_CHARS_BW
-
-    if colored:
-        rgb = image.convert("RGB")
-        pixels = np.array(rgb)
-        rows = []
-        for row in pixels:
-            line = "".join(
-                _pixel_to_colored_char(r, g, b, chars=chars) for r, g, b in row
-            )
-            rows.append(line)
-        return "\n".join(rows)
-
-    gray = np.array(image.convert("L"))
-    rows = []
-    for row in gray:
-        line = "".join(_brightness_to_char(int(p), chars=chars) for p in row)
-        rows.append(line)
-    return "\n".join(rows)
+    frame_rgb = np.array(image.convert("RGB"))
+    return frame_to_ascii(frame_rgb, colored=colored, mode=mode)
 
 
 def convert_image(
@@ -155,58 +228,48 @@ def convert_image(
     return image_to_ascii(image, colored=colored, mode=mode)
 
 
-def _brightness_to_char(brightness: int, *, chars: str) -> str:
-    index = int(brightness / 255 * (len(chars) - 1))
-    return chars[index]
+def _frame_to_braille(frame_rgb: np.ndarray, *, colored: bool = False) -> str:
+    """Convert a numpy RGB frame to Braille unicode — vectorized."""
+    gray = (
+        0.299 * frame_rgb[:, :, 0]
+        + 0.587 * frame_rgb[:, :, 1]
+        + 0.114 * frame_rgb[:, :, 2]
+    ).astype(np.uint8)
 
-
-def _pixel_to_colored_char(r: int, g: int, b: int, *, chars: str) -> str:
-    brightness = int(0.299 * r + 0.587 * g + 0.114 * b)
-    char = _brightness_to_char(brightness, chars=chars)
-    return f"\033[38;2;{r};{g};{b}m{char}\033[0m"
-
-
-def _image_to_braille(image: Image.Image, *, colored: bool = False) -> str:
-    """Convert a pre-resized image to Braille unicode characters.
-
-    Args:
-        image: A Pillow Image object sized at pixel_width x pixel_height.
-        colored: If True, colors each Braille char with the average block color.
-
-    Returns:
-        A Braille string representing the image.
-    """
-    gray = np.array(image.convert("L"))
     threshold = int(np.mean(gray))
+    binary = (gray > threshold).astype(np.uint8)
 
     pixel_height, pixel_width = gray.shape
-    char_width = pixel_width // 2
     char_height = pixel_height // 4
+    char_width = pixel_width // 2
 
-    rgb = np.array(image.convert("RGB")) if colored else None
+    # reshape into braille character blocks — (char_h, char_w, 4, 2)
+    blocks = binary[: char_height * 4, : char_width * 2]
+    blocks = blocks.reshape(char_height, 4, char_width, 2).transpose(0, 2, 1, 3)
+
+    # vectorized bit accumulation
+    bits = np.zeros((char_height, char_width), dtype=np.uint32)
+    for row in range(4):
+        for col in range(2):
+            bit_value = BRAILLE_BIT_MAP[(row, col)]
+            bits += blocks[:, :, row, col].astype(np.uint32) * bit_value
+
+    # convert bit patterns to braille unicode characters
+    chars = np.vectorize(lambda b: chr(BRAILLE_OFFSET + b))(bits)
+
+    if not colored:
+        return "\n".join("".join(row) for row in chars)
+
+    # average color per 4×2 block
+    rgb = frame_rgb[: char_height * 4, : char_width * 2]
+    rgb_blocks = rgb.reshape(char_height, 4, char_width, 2, 3).transpose(0, 2, 1, 3, 4)
+    avg_colors = rgb_blocks.mean(axis=(2, 3)).astype(np.uint8)
+
     rows = []
-
-    for char_row in range(char_height):
-        line = []
-        for char_col in range(char_width):
-            py = char_row * 4
-            px = char_col * 2
-
-            bits = 0
-            for row_offset in range(4):
-                for col_offset in range(2):
-                    if gray[py + row_offset, px + col_offset] > threshold:
-                        bits |= BRAILLE_BIT_MAP[(row_offset, col_offset)]
-
-            char = chr(BRAILLE_OFFSET + bits)
-
-            if colored and rgb is not None:
-                block = rgb[py : py + 4, px : px + 2]
-                avg = block.mean(axis=(0, 1)).astype(int)
-                r, g, b = int(avg[0]), int(avg[1]), int(avg[2])
-                char = f"\033[38;2;{r};{g};{b}m{char}\033[0m"
-
-            line.append(char)
-        rows.append("".join(line))
-
+    for y in range(char_height):
+        parts = []
+        for x in range(char_width):
+            r, g, b = avg_colors[y, x]
+            parts.append(f"\033[38;2;{r};{g};{b}m{chars[y, x]}\033[0m")
+        rows.append("".join(parts))
     return "\n".join(rows)

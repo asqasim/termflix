@@ -9,7 +9,7 @@ from typing import Generator
 import cv2
 from PIL import Image
 
-from termflix.image import RenderMode, image_to_ascii, resize_image
+from termflix.image import RenderMode, frame_to_ascii, resize_frame  # noqa: F401
 
 _SENTINEL = object()  # signals threads to stop
 
@@ -210,7 +210,6 @@ class VideoPlayer:
         self._raw_queue.put(_SENTINEL)
 
     def _renderer(self) -> None:
-        """Thread: takes raw numpy frames, converts to ASCII, puts in rendered_queue."""
         while not self._stop_event.is_set():
             try:
                 frame = self._raw_queue.get(timeout=1)
@@ -221,9 +220,9 @@ class VideoPlayer:
                 self._rendered_queue.put(_SENTINEL)
                 break
 
-            pil_image = Image.fromarray(frame)
-            resized = resize_image(pil_image, self.width, mode=self.mode)
-            rendered = image_to_ascii(resized, colored=self.colored, mode=self.mode)
+            # use numpy path directly — no Pillow conversion
+            resized = resize_frame(frame, self.width, mode=self.mode)
+            rendered = frame_to_ascii(resized, colored=self.colored, mode=self.mode)
             self._rendered_queue.put(rendered)
 
     def _display(self) -> None:
