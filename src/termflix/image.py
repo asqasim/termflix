@@ -122,15 +122,11 @@ def resize_frame(
 
     if mode == RenderMode.BRAILLE:
         pixel_width = width * 2
-        pixel_height = (
-            int(pixel_width * aspect_ratio * BRAILLE_ASPECT_CORRECTION) // 4
-        ) * 4
+        pixel_height = int(pixel_width * aspect_ratio * BRAILLE_ASPECT_CORRECTION) * 4
+        pixel_height = (pixel_height // 4) * 4  # ensure multiple of 4 for block alignment
         return cv2.resize(
             frame_rgb, (pixel_width, pixel_height), interpolation=cv2.INTER_LINEAR
         )
-
-    pixel_height = int(width * aspect_ratio * ASPECT_RATIO_CORRECTION)
-    return cv2.resize(frame_rgb, (width, pixel_height), interpolation=cv2.INTER_LINEAR)
 
 
 def frame_to_ascii(
