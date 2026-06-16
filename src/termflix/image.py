@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 from PIL import Image
 
-ASCII_CHARS_BW = np.array(list(r" .:-=+*#%@"))
+ASCII_CHARS_BW = np.array(list(r"@%#*+=-:. "))
 ASCII_CHARS_COLOR = np.array(
     list(r"$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\"^`'. ")
 )
