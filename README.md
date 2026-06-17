@@ -1,7 +1,7 @@
 # termflix
 
 ![python](https://img.shields.io/badge/python-3.8_|_3.9_|_3.10_|_3.11_|_3.12_|_3.13_|_3.14_|_3.15-blue?style=flat-square&logo=python&logoColor=white)
-![pypi package](https://img.shields.io/badge/pypi_package-8.2.7-brightgreen?style=flat-square&logo=pypi&logoColor=white)
+![pypi package](https://img.shields.io/badge/pypi_package-1.0.0-brightgreen?style=flat-square&logo=pypi&logoColor=white)
 ![OS](https://img.shields.io/badge/OS-macOS_Linux_Windows-lightgrey?style=flat-square)
 
 Play any image or video directly in your terminal — no browser, no GUI, no compromises.
@@ -11,9 +11,9 @@ Play any image or video directly in your terminal — no browser, no GUI, no com
 
 ---
 
-| Black & White | Color | Original |
+| Color | Original | Black & White |
 |:---:|:---:|:---:|
-| ![B&W preview](docs/preview_bw.png) | ![Color preview](docs/preview_color.png) | ![Original preview](docs/preview_original.png) |
+| ![Original preview](docs/preview_original.png) | ![Color preview](docs/preview_color.png) | ![B&W preview](docs/preview_bw.png) |
 | ![B&W gif](docs/preview_bw.gif) | ![Color gif](docs/preview_color.gif) | ![Original gif](docs/preview_original.gif) |
 
 ---
