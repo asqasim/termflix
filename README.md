@@ -81,6 +81,7 @@ Each mode supports both B&W and full ANSI truecolor output via `--color`.
 | `↑` `↓` | Volume up / down |
 | `m` | Toggle render mode |
 | `c` | Toggle color |
+| `x` | main menu |
 | `q` | Quit |
 
 ---
