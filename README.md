@@ -11,7 +11,7 @@ Play any image or video directly in your terminal — no browser, no GUI, no com
 
 ---
 
-| Color | Original | Black & White |
+| Original | Color | Black & White |
 |:---:|:---:|:---:|
 | ![Original preview](docs/preview_original.png) | ![Color preview](docs/preview_color.png) | ![B&W preview](docs/preview_bw.png) |
 | ![B&W gif](docs/preview_bw.gif) | ![Color gif](docs/preview_color.gif) | ![Original gif](docs/preview_original.gif) |
