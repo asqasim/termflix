@@ -26,7 +26,6 @@ BRAILLE_BIT_MAP: dict[tuple[int, int], int] = {
     (3, 1): 0x80,
 }
 
-# precompute braille bit positions as arrays for vectorized ops
 _BRAILLE_ROW_OFFSETS = np.array([0, 0, 1, 1, 2, 2, 3, 3])
 _BRAILLE_COL_OFFSETS = np.array([0, 1, 0, 1, 0, 1, 0, 1])
 _BRAILLE_BITS = np.array([0x01, 0x08, 0x02, 0x10, 0x04, 0x20, 0x40, 0x80])
@@ -62,6 +61,46 @@ def load_image(path: str | Path) -> Image.Image:
         raise ValueError(f"File is not a valid image: {path}") from e
 
     return image
+
+
+def fit_to_terminal(
+    image: Image.Image,
+    *,
+    mode: str = RenderMode.ASCII,
+) -> tuple[int, int]:
+    """Calculate width and height that fit the image inside the current terminal.
+
+    Constrains by both terminal width and height while preserving aspect ratio.
+
+    Args:
+        image: A Pillow Image object.
+        mode: Render mode affects aspect ratio correction.
+
+    Returns:
+        A tuple of (width, height) that fits inside the terminal.
+    """
+    from termflix.compat import get_terminal_size
+
+    term_cols, term_lines = get_terminal_size()
+    term_lines -= 2
+
+    orig_w, orig_h = image.size
+    aspect_ratio = orig_h / orig_w
+
+    correction = (
+        BRAILLE_ASPECT_CORRECTION
+        if mode == RenderMode.BRAILLE
+        else ASPECT_RATIO_CORRECTION
+    )
+
+    width = term_cols
+    height = int(width * aspect_ratio * correction)
+
+    if height > term_lines:
+        height = term_lines
+        width = int(height / (aspect_ratio * correction))
+
+    return max(1, width), max(1, height)
 
 
 def resize_image(
@@ -104,6 +143,19 @@ def resize_frame(
     *,
     mode: str = RenderMode.ASCII,
 ) -> np.ndarray:
+    """Resize a raw numpy RGB frame directly using OpenCV.
+
+    Args:
+        frame_rgb: A numpy array of shape (H, W, 3) in RGB order.
+        width: Target width in terminal columns.
+        mode: Render mode affects aspect ratio correction.
+
+    Raises:
+        ValueError: If width is not a positive integer or cv2.resize fails.
+
+    Returns:
+        A resized numpy array.
+    """
     if width <= 0:
         raise ValueError(f"Width must be a positive integer, got {width}")
 
@@ -139,8 +191,6 @@ def frame_to_ascii(
 ) -> str:
     """Convert a raw numpy RGB frame to a terminal string — fully vectorized.
 
-    This bypasses Pillow entirely for maximum speed during video playback.
-
     Args:
         frame_rgb: A numpy array of shape (H, W, 3) in RGB order.
         colored: If True, wraps characters in ANSI truecolor escape codes.
@@ -154,7 +204,6 @@ def frame_to_ascii(
 
     chars = ASCII_CHARS_COLOR if colored else ASCII_CHARS_BW
 
-    # vectorized luminance — entire frame at once, no Python loops
     gray = (
         0.299 * frame_rgb[:, :, 0]
         + 0.587 * frame_rgb[:, :, 1]
@@ -167,7 +216,6 @@ def frame_to_ascii(
     if not colored:
         return "\n".join("".join(row) for row in char_array)
 
-    # vectorized ANSI color wrapping
     r = frame_rgb[:, :, 0]
     g = frame_rgb[:, :, 1]
     b = frame_rgb[:, :, 2]
@@ -206,7 +254,7 @@ def image_to_ascii(
 def convert_image(
     path: str | Path,
     *,
-    width: int = 80,
+    width: int = 0,
     colored: bool = False,
     mode: str = RenderMode.ASCII,
 ) -> str:
@@ -214,7 +262,7 @@ def convert_image(
 
     Args:
         path: Path to the image file.
-        width: Target width in terminal columns. Defaults to 80.
+        width: Target width in terminal columns. 0 means auto-fit to terminal.
         colored: Whether to use ANSI color codes. Defaults to False.
         mode: RenderMode.ASCII or RenderMode.BRAILLE. Defaults to ASCII.
 
@@ -222,8 +270,17 @@ def convert_image(
         Terminal string representation of the image.
     """
     image = load_image(path)
+
+    if width == 0:
+        width, _ = fit_to_terminal(image, mode=mode)
+
     image = resize_image(image, width, mode=mode)
     return image_to_ascii(image, colored=colored, mode=mode)
+
+
+def _brightness_to_char(brightness: int, *, chars: np.ndarray) -> str:
+    index = int(brightness / 255 * (len(chars) - 1))
+    return chars[index]
 
 
 def _frame_to_braille(frame_rgb: np.ndarray, *, colored: bool = False) -> str:
@@ -241,24 +298,20 @@ def _frame_to_braille(frame_rgb: np.ndarray, *, colored: bool = False) -> str:
     char_height = pixel_height // 4
     char_width = pixel_width // 2
 
-    # reshape into braille character blocks — (char_h, char_w, 4, 2)
     blocks = binary[: char_height * 4, : char_width * 2]
     blocks = blocks.reshape(char_height, 4, char_width, 2).transpose(0, 2, 1, 3)
 
-    # vectorized bit accumulation
     bits = np.zeros((char_height, char_width), dtype=np.uint32)
     for row in range(4):
         for col in range(2):
             bit_value = BRAILLE_BIT_MAP[(row, col)]
             bits += blocks[:, :, row, col].astype(np.uint32) * bit_value
 
-    # convert bit patterns to braille unicode characters
     chars = np.vectorize(lambda b: chr(BRAILLE_OFFSET + b))(bits)
 
     if not colored:
         return "\n".join("".join(row) for row in chars)
 
-    # average color per 4×2 block
     rgb = frame_rgb[: char_height * 4, : char_width * 2]
     rgb_blocks = rgb.reshape(char_height, 4, char_width, 2, 3).transpose(0, 2, 1, 3, 4)
     avg_colors = rgb_blocks.mean(axis=(2, 3)).astype(np.uint8)
