@@ -1,9 +1,8 @@
-from termflix.tui.app import TermflixApp
+from __future__ import annotations
 
 
 def main() -> None:
-    app = TermflixApp()
-    app.run()
+    print("termflix")
 
 
 if __name__ == "__main__":
