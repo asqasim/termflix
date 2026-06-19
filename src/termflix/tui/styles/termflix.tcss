@@ -1,0 +1,34 @@
+Screen {
+    background: #080808;
+    color: #e0e0e0;
+    align: center middle;
+}
+
+/* ── Intro ─────────────────────────────────────────── */
+
+#intro-spacer {
+    height: 2;
+}
+
+#intro-logo {
+    content-align: center middle;
+    text-align: center;
+    text-style: bold;
+    width: 100%;
+}
+
+#intro-tagline {
+    content-align: center middle;
+    text-align: center;
+    color: #555555;
+    width: 100%;
+    margin-top: 1;
+}
+
+#intro-hint {
+    content-align: center middle;
+    text-align: center;
+    color: #333333;
+    width: 100%;
+    margin-top: 2;
+}
