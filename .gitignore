@@ -4,6 +4,7 @@ __pycache__/
 dist/
 .coverage
 *.egg-info/
+.vscode/
 try.py
 
 # Tools
