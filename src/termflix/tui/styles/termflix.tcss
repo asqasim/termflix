@@ -59,7 +59,7 @@ Screen {
     height: auto;
     background: transparent;
     border: none;
-    margin: 0 auto;
+    margin: 0 12;
 }
 
 #home-menu > ListItem {
@@ -110,7 +110,7 @@ Screen {
 
 #path-input {
     width: 70%;
-    margin: 0 auto;
+    margin: 0 8;
     background: #0f0f0f;
     border: solid #333333;
     color: #e0e0e0;
