@@ -32,3 +32,106 @@ Screen {
     width: 100%;
     margin-top: 2;
 }
+
+/* ── Global ───────────────────────────────────────────────────────────────── */
+
+Screen {
+    background: #080808;
+    color: #e0e0e0;
+    align: center middle;
+    border: double #222222;
+    padding: 1 2;
+}
+
+/* ── Home ─────────────────────────────────────────────────────────────────── */
+
+#home-title {
+    text-align: center;
+    content-align: center middle;
+    color: #00ff99;
+    text-style: bold;
+    width: 100%;
+    margin-bottom: 3;
+}
+
+#home-menu {
+    width: 36;
+    height: auto;
+    background: transparent;
+    border: none;
+    margin: 0 auto;
+}
+
+#home-menu > ListItem {
+    background: transparent;
+    color: #aaaaaa;
+    padding: 1 3;
+}
+
+#home-menu > ListItem.--highlight {
+    background: #0d1f17;
+    color: #00ff99;
+    border-left: solid #00ff99;
+}
+
+#home-menu > ListItem:disabled {
+    color: #333333;
+}
+
+#home-footer {
+    text-align: center;
+    color: #333333;
+    width: 100%;
+    margin-top: 3;
+}
+
+/* ── Path Input ───────────────────────────────────────────────────────────── */
+
+#path-spacer {
+    height: 3;
+}
+
+#path-title {
+    text-align: center;
+    content-align: center middle;
+    color: #00ff99;
+    text-style: bold;
+    width: 100%;
+    margin-bottom: 1;
+}
+
+#path-subtitle {
+    text-align: center;
+    content-align: center middle;
+    color: #444444;
+    width: 100%;
+    margin-bottom: 2;
+}
+
+#path-input {
+    width: 70%;
+    margin: 0 auto;
+    background: #0f0f0f;
+    border: solid #333333;
+    color: #e0e0e0;
+}
+
+#path-input:focus {
+    border: solid #00ff99;
+}
+
+#path-error {
+    text-align: center;
+    content-align: center middle;
+    width: 100%;
+    height: 1;
+    margin-top: 1;
+}
+
+#path-hint {
+    text-align: center;
+    content-align: center middle;
+    color: #333333;
+    width: 100%;
+    margin-top: 2;
+}
