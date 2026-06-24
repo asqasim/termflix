@@ -100,7 +100,7 @@ Each mode supports both B&W and full ANSI truecolor output via `--color`.
 | [OpenCV](https://opencv.org/) | Video frame extraction |
 | [Pillow](https://python-pillow.org/) | Image processing |
 | [NumPy](https://numpy.org/) | Pixel array operations |
-| [Click](https://click.palletsprojects.com/) | CLI interface |
+| [Click](https://click.palletsprojects.com/) | CLI interface(Not Yet Used) |
 
 ---
 
