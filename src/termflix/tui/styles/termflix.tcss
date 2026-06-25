@@ -135,3 +135,39 @@ Screen {
     width: 100%;
     margin-top: 2;
 }
+
+
+/* ── Browse ───────────────────────────────────────────────────────────────── */
+
+#browse-path {
+    color: #00ff99;
+    margin: 0 1;
+}
+
+#browse-count {
+    color: #444444;
+    margin: 0 1 1 1;
+}
+
+#browse-list {
+    border: solid #1a1a1a;
+    background: #0a0a0a;
+    height: 1fr;
+    margin: 0 1;
+}
+
+#browse-list > ListItem {
+    background: transparent;
+    padding: 0 2;
+}
+
+#browse-list > ListItem.--highlight {
+    background: #0d1f17;
+    border-left: solid #00ff99;
+}
+
+#browse-footer {
+    text-align: center;
+    color: #333333;
+    margin-top: 1;
+}
