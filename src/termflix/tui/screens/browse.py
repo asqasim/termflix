@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 from textual.app import ComposeResult
@@ -19,16 +20,13 @@ def _scan(path: Path) -> list[tuple[str, Path, str]]:
     except PermissionError:
         return []
 
-    # parent folder navigation
     if path.parent != path:
         items.append(("..  (go up)", path.parent, "up"))
 
-    # folders first
     for entry in entries:
         if entry.is_dir() and not entry.name.startswith("."):
             items.append((f"▸  {entry.name}", entry, "dir"))
 
-    # then media files
     for entry in entries:
         if entry.is_file():
             ext = entry.suffix.lower()
@@ -56,10 +54,10 @@ class BrowseScreen(Screen):
         yield ListView(id="browse-list")
         yield Static("↑↓ navigate   enter open   esc back", id="browse-footer")
 
-    def on_mount(self) -> None:
-        self._load(self.current)
+    async def on_mount(self) -> None:
+        await self._load(self.current)
 
-    def _load(self, path: Path) -> None:
+    async def _load(self, path: Path) -> None:
         self.current = path
         self._items = _scan(path)
 
@@ -70,9 +68,9 @@ class BrowseScreen(Screen):
             f"  {media_count} media files" if media_count else "  no media files here"
         )
 
-        list_view = self.query_one("#browse-list", ListView)
-        list_view.clear()
+        prefix = "p" + hashlib.md5(str(path).encode()).hexdigest()[:7]
 
+        new_items = []
         for i, (label, _, kind) in enumerate(self._items):
             if kind == "up":
                 colour = "dim"
@@ -85,22 +83,29 @@ class BrowseScreen(Screen):
             else:
                 colour = "white"
 
-            list_view.append(
+            new_items.append(
                 ListItem(
                     Label(f"[{colour}]{label}[/{colour}]", markup=True),
-                    id=f"item-{i}",
+                    id=f"{prefix}-{i}",
                 )
             )
 
-    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        old = self.query_one("#browse-list", ListView)
+        await old.remove()
+
+        new_list = ListView(*new_items, id="browse-list")
+        await self.mount(new_list, before=self.query_one("#browse-footer"))
+        new_list.focus()
+
+    async def on_list_view_selected(self, event: ListView.Selected) -> None:
         if event.item is None:
             return
 
-        idx = int(event.item.id.removeprefix("item-"))
+        idx = int(event.item.id.rsplit("-", 1)[-1])
         _, path, kind = self._items[idx]
 
         if kind in ("dir", "up"):
-            self._load(path)
+            await self._load(path)
 
         elif kind == "image":
             all_images = [p for _, p, k in self._items if k == "image"]
