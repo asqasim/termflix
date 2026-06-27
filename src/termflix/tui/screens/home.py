@@ -5,11 +5,11 @@ from textual.screen import Screen
 from textual.widgets import Label, ListItem, ListView, Static
 
 MENU = [
-    ("browse", "▶  Browse files", False),
-    ("path", "⌘  Paste a path", False),
-    ("online", "↗  Online link", True),
-    ("settings", "⚙  Settings", True),
-    ("quit", "✕  Quit", False),
+    ("browse", "Browse files", False),
+    ("path", "Paste a path", False),
+    ("online", "Online link", True),
+    ("settings", "Settings", True),
+    ("quit", "Quit", False),
 ]
 
 
