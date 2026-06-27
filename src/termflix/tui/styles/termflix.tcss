@@ -123,3 +123,22 @@ Screen {
     color: #333333;
     margin-top: 1;
 }
+
+/* ── Image Viewer ─────────────────────────────────────────────────────────── */
+
+#image-display {
+    margin: 0;
+    padding: 0;
+}
+
+#image-status {
+    color: #333333;
+    margin: 0 1;
+}
+
+/* ── Player ───────────────────────────────────────────────────────────────── */
+
+#player-title {
+    color: #333333;
+    height: 1;
+}
