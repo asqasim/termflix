@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from rich.text import Text
 from textual.app import ComposeResult
 from textual.screen import Screen
 from textual.widgets import Static
@@ -48,9 +49,12 @@ class ImageViewerScreen(Screen):
                 mode=self.mode,
             )
         except Exception as e:
-            result = f"[red]Error loading image: {e}[/red]"
+            self.query_one("#image-display", Static).update(f"Error: {e}")
+            return
 
-        self.query_one("#image-display", Static).update(result)
+        # convert raw ANSI string to Rich Text object
+        text = Text.from_ansi(result)
+        self.query_one("#image-display", Static).update(text)
         self.query_one("#image-status", Static).update(
             f"  {self.current_path.name}"
             f"  [{self.index + 1}/{len(self.all_images)}]"
