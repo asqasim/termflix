@@ -266,7 +266,12 @@ def run_browse(start: Path | None = None) -> Path | None:
                         current = path
                         break  # reload folder
                     elif kind in ("image", "video"):
-                        return path
+                        from termflix.main import _play_file
+
+                        sys.stdout.write(SHOW_CUR)
+                        _play_file(path)
+                        sys.stdout.write(HIDE_CUR)
+                        # stay in current folder, don't return
                     # empty — do nothing
 
                 elif key == "backspace":
