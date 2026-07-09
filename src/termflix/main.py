@@ -25,25 +25,46 @@ def _play_file(path: Path) -> None:
         _play_video(path)
 
 
-def _view_image(path: Path) -> None:
-    """View an image in the terminal."""
+def _view_image(path: Path, all_images: list[Path] | None = None) -> None:
+    """View an image with left/right navigation through folder images."""
     import sys
 
-    result = convert_image(path, colored=True, mode=RenderMode.ASCII)
-    cols, lines = get_terminal_size()
-
-    sys.stdout.write(CLEAR)
-    sys.stdout.write(result)
-
-    # status bar
-    status = f"  {path.name}  —  any key to go back"
-    sys.stdout.write(f"\033[{lines};0H\033[K\033[90m{status}\033[0m")
-    sys.stdout.flush()
-
-    # wait for keypress
     from termflix.tui.menu import _get_key
 
-    _get_key()
+    images = all_images or [path]
+    index = images.index(path) if path in images else 0
+    colored = True
+    mode = RenderMode.ASCII
+
+    while True:
+        current = images[index]
+        cols, lines = get_terminal_size()
+
+        result = convert_image(current, colored=colored, mode=mode)
+        sys.stdout.write(CLEAR)
+        sys.stdout.write(result)
+
+        status = (
+            f"  {current.name}"
+            f"  [{index + 1}/{len(images)}]"
+            f"  c color  b braille"
+            f"  ←→ navigate  any other key back"
+        )
+        sys.stdout.write(f"\033[{lines};0H\033[K\033[90m{status}\033[0m")
+        sys.stdout.flush()
+
+        key = _get_key()
+
+        if key == "right":
+            index = (index + 1) % len(images)
+        elif key == "left":
+            index = (index - 1) % len(images)
+        elif key == "c":
+            colored = not colored
+        elif key == "b":
+            mode = RenderMode.BRAILLE if mode == RenderMode.ASCII else RenderMode.ASCII
+        else:
+            break
 
 
 def _play_video(path: Path) -> None:
