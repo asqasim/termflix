@@ -194,10 +194,8 @@ def run_browse(start: Path | None = None) -> Path | None:
                     colour = C_GREY
                 elif kind == "dir":
                     colour = C_YELLOW
-                elif kind == "image":
+                elif kind in ("image", "video"):
                     colour = C_CYAN
-                elif kind == "video":
-                    colour = C_GREEN
                 else:
                     colour = C_DIM
                 display.append((label, colour))
@@ -265,13 +263,20 @@ def run_browse(start: Path | None = None) -> Path | None:
                     if kind in ("dir", "up"):
                         current = path
                         break  # reload folder
-                    elif kind in ("image", "video"):
-                        from termflix.main import _play_file
+                    elif kind == "image":
+                        from termflix.main import _view_image
+
+                        all_images = [p for _, p, k in entries if k == "image"]
 
                         sys.stdout.write(SHOW_CUR)
-                        _play_file(path)
+                        _view_image(path, all_images=all_images)
                         sys.stdout.write(HIDE_CUR)
-                        # stay in current folder, don't return
+                    elif kind == "video":
+                        from termflix.main import _play_video
+
+                        sys.stdout.write(SHOW_CUR)
+                        _play_video(path)
+                        sys.stdout.write(HIDE_CUR)
                     # empty — do nothing
 
                 elif key == "backspace":
