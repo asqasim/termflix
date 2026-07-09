@@ -110,9 +110,7 @@ def _draw_menu(
 
         if i == selected:
             buf.append(_move(row, col - 2))
-            buf.append(C_GREEN + "▶ " + C_RESET)
-            buf.append(_move(row, col))
-            buf.append(C_WHITE + label + C_RESET)
+            buf.append("\033[48;2;0;40;20m" + C_GREEN + "  " + label + "  " + C_RESET)
         else:
             buf.append(_move(row, col))
             buf.append(colour + C_DIM + label + C_RESET)
