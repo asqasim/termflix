@@ -26,7 +26,6 @@ def _play_file(path: Path) -> None:
 
 
 def _view_image(path: Path, all_images: list[Path] | None = None) -> None:
-    """View an image with left/right navigation through folder images."""
     import sys
 
     from termflix.tui.menu import _get_key
@@ -35,35 +34,43 @@ def _view_image(path: Path, all_images: list[Path] | None = None) -> None:
     index = images.index(path) if path in images else 0
     colored = True
     mode = RenderMode.ASCII
+    last_size = (0, 0)
 
     while True:
         current = images[index]
         cols, lines = get_terminal_size()
 
-        result = convert_image(current, colored=colored, mode=mode)
-        sys.stdout.write(CLEAR)
-        sys.stdout.write(result)
+        # re-render if size changed or new image
+        if (cols, lines) != last_size:
+            last_size = (cols, lines)
+            result = convert_image(current, colored=colored, mode=mode)
+            sys.stdout.write(CLEAR)
+            sys.stdout.write(result)
 
-        status = (
-            f"  {current.name}"
-            f"  [{index + 1}/{len(images)}]"
-            f"  c color  b braille"
-            f"  ←→ navigate  any other key back"
-        )
-        sys.stdout.write(f"\033[{lines};0H\033[K\033[90m{status}\033[0m")
-        sys.stdout.flush()
+            status = (
+                f"  {current.name}"
+                f"  [{index + 1}/{len(images)}]"
+                f"  c color  b braille"
+                f"  ←→ navigate  q back"
+            )
+            sys.stdout.write(f"\033[{lines};0H\033[K\033[90m{status}\033[0m")
+            sys.stdout.flush()
 
         key = _get_key()
 
         if key == "right":
             index = (index + 1) % len(images)
+            last_size = (0, 0)  # force re-render
         elif key == "left":
             index = (index - 1) % len(images)
+            last_size = (0, 0)
         elif key == "c":
             colored = not colored
+            last_size = (0, 0)
         elif key == "b":
             mode = RenderMode.BRAILLE if mode == RenderMode.ASCII else RenderMode.ASCII
-        else:
+            last_size = (0, 0)
+        elif key in ("q", "esc"):
             break
 
 
