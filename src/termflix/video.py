@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 # import math
+import sys
 import threading
 import time
 from pathlib import Path
@@ -153,16 +154,6 @@ def _current_render_width() -> int:
 
 
 class VideoPlayer:
-    """Threaded video player with live terminal resize detection.
-
-    Architecture:
-        Reader thread  → raw_queue  → Renderer thread → rendered_queue → Display
-
-    The renderer checks terminal size before each frame. If it changed since
-    the last frame, it re-renders at the new dimensions automatically.
-    Zooming in or out takes effect within 1-2 frames.
-    """
-
     def __init__(
         self,
         path: str | Path,
@@ -179,22 +170,23 @@ class VideoPlayer:
         self._raw_queue: Queue = Queue(maxsize=raw_buffer_size)
         self._rendered_queue: Queue = Queue(maxsize=rendered_buffer_size)
         self._stop_event = threading.Event()
+        self._pause_event = threading.Event()  # set = paused
+        self._seek_delta = 0  # frames to seek
 
         self.metadata: VideoMetadata | None = None
-
-        # shared state between renderer and display — protected by a lock
         self._current_width = _current_render_width()
         self._width_lock = threading.Lock()
 
     def play(self) -> None:
-        """Start playback. Blocks until video ends or user interrupts with Ctrl+C."""
         cap, self.metadata = open_video(self.path)
 
         reader_thread = threading.Thread(target=self._reader, args=(cap,), daemon=True)
         renderer_thread = threading.Thread(target=self._renderer, daemon=True)
+        input_thread = threading.Thread(target=self._input, daemon=True)
 
         reader_thread.start()
         renderer_thread.start()
+        input_thread.start()
 
         self._display()
 
@@ -203,12 +195,59 @@ class VideoPlayer:
         renderer_thread.join(timeout=2)
         release_video(cap)
 
-    def _reader(self, cap: cv2.VideoCapture) -> None:
-        """Thread: reads raw BGR frames from disk into raw_queue."""
-        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    def _input(self) -> None:
+        """Thread: reads keypresses and updates player state."""
+        from termflix.tui.menu import _get_key
 
-        for _ in range(total):
-            if self._stop_event.is_set():
+        while not self._stop_event.is_set():
+            key = _get_key()
+
+            if key == " ":
+                if self._pause_event.is_set():
+                    self._pause_event.clear()  # unpause
+                else:
+                    self._pause_event.set()  # pause
+
+            elif key == "right":
+                self._seek_delta = 5 * int(self.metadata.fps if self.metadata else 24)
+
+            elif key == "left":
+                self._seek_delta = -5 * int(self.metadata.fps if self.metadata else 24)
+
+            elif key in ("q", "esc"):
+                self._stop_event.set()
+                break
+
+    def _reader(self, cap: cv2.VideoCapture) -> None:
+        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        current_frame = 0
+
+        while not self._stop_event.is_set():
+            # handle seek
+            if self._seek_delta != 0:
+                current_frame = max(0, min(total - 1, current_frame + self._seek_delta))
+                self._seek_delta = 0
+                cap.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
+
+                # drain queues so we don't show stale frames
+                while not self._raw_queue.empty():
+                    try:
+                        self._raw_queue.get_nowait()
+                    except Empty:
+                        break
+                while not self._rendered_queue.empty():
+                    try:
+                        self._rendered_queue.get_nowait()
+                    except Empty:
+                        break
+
+            if self._pause_event.is_set():
+                import time
+
+                time.sleep(0.05)
+                continue
+
+            if current_frame >= total:
                 break
 
             success, frame_bgr = cap.read()
@@ -217,11 +256,11 @@ class VideoPlayer:
 
             frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
             self._raw_queue.put(frame_rgb)
+            current_frame += 1
 
         self._raw_queue.put(_SENTINEL)
 
     def _renderer(self) -> None:
-        """Thread: converts raw frames to ASCII, detecting terminal resize each frame."""
         last_width = self._current_width
 
         while not self._stop_event.is_set():
@@ -234,14 +273,11 @@ class VideoPlayer:
                 self._rendered_queue.put(_SENTINEL)
                 break
 
-            # check if terminal was resized since last frame
             new_width = _current_render_width()
             if new_width != last_width:
                 last_width = new_width
                 with self._width_lock:
                     self._current_width = new_width
-
-                # drain rendered queue so stale wrong-size frames don't display
                 while not self._rendered_queue.empty():
                     try:
                         self._rendered_queue.get_nowait()
@@ -253,14 +289,23 @@ class VideoPlayer:
             self._rendered_queue.put(rendered)
 
     def _display(self) -> None:
-        """Main thread: prints pre-rendered frames at correct fps timing."""
         assert self.metadata is not None
         frame_duration = 1.0 / self.metadata.fps
 
-        print("\033[2J\033[H", end="", flush=True)  # clear screen once
+        print("\033[2J\033[H", end="", flush=True)
 
         try:
             while not self._stop_event.is_set():
+                if self._pause_event.is_set():
+                    # show pause indicator
+                    cols, lines = get_terminal_size()
+                    sys.stdout.write(
+                        f"\033[{lines};0H\033[K\033[93m ⏸paused — q quit\033[0m"
+                    )
+                    sys.stdout.flush()
+                    time.sleep(0.05)
+                    continue
+
                 start = time.perf_counter()
 
                 try:
@@ -271,8 +316,17 @@ class VideoPlayer:
                 if frame_str is _SENTINEL:
                     break
 
-                print("\033[H", end="")  # move cursor to top-left, no flicker
+                print("\033[H", end="")
                 print(frame_str, flush=True)
+
+                # status bar
+                cols, lines = get_terminal_size()
+                sys.stdout.write(
+                    f"\033[{lines};0H\033[K\033[90m"
+                    f"  space pause  ←→ seek 5s  q quit"
+                    f"\033[0m"
+                )
+                sys.stdout.flush()
 
                 elapsed = time.perf_counter() - start
                 sleep_time = frame_duration - elapsed
